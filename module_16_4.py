@@ -19,32 +19,30 @@ def get_all_users() -> List[User]:
     return users
 
 
-@app.post("/user/{username}/{age}")
-def create_user(username: Annotated[str, Path(min_length=5, max_length=20, description='Enter username')],
-                age: Annotated[int, Path(ge=18, le=120, description='Enter age')]) -> User:
+@app.post("/user/{username}/{age}", response_model=User, status_code=status.HTTP_201_CREATED)
+def create_user(username: str = Path(..., min_length=5, max_length=20, description='Enter username'),
+                age: int = Path(..., ge=18, le=120, description='Enter age')) -> User:
     user_id = (users[-1].id + 1) if users else 1
     user = User(id=user_id, username=username, age=age)
     users.append(user)
     return user
 
 
-@app.put("/user/{user_id}/{username}/{age}")
-def update_user(user_id: Annotated[int, Path(ge=1, le=100, description='Enter User ID')],
-                username: Annotated[str, Path(min_length=5, max_length=20, description='Enter username')],
-                age: Annotated[int, Path(ge=18, le=120, description='Enter age')]) -> User:
-    for user in users:
+@app.delete("/user/{user_id}", response_model=User, status_code=status.HTTP_200_OK)
+def delete_user(user_id: int = Path(..., description='ID of the user to delete')) -> User:
+    for index, user in enumerate(users):
         if user.id == user_id:
-            user.username = username
-            user.age = age
-            return user
-    else:
-        raise HTTPException(status_code=404, detail='User was not found')
+            deleted_user = users.pop(index)
+            return deleted_user
+    
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
 
-@app.delete("/user/{user_id}")
-def delete_user(user_id: int) -> str:
-    try:
-        users.pop(user_id)
-        return f"User id = {user_id} deleted"
-    except IndexError:
-        raise HTTPException(status_code=404, detail="User not found")
+@app.put("/user/{user_id}", response_model=User, status_code=status.HTTP_200_OK)
+def update_user(user_id: int, user: User) -> User:
+    for index, existing_user in enumerate(users):
+        if existing_user.id == user_id:
+            users[index] = user
+            users[index].id = user_id  
+            return users[index]
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
